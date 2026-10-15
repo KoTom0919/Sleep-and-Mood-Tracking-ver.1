@@ -1527,3 +1527,282 @@ async function loadNotices() {
   const data = await response.json();
   return data.notices;
 }
+
+/* ===== アプリ1：設定・データ移行・共有 ===== */
+
+document.addEventListener("DOMContentLoaded", () => {
+    const recordKey = "sleepRecords";
+    const settingKey = "sleepConditionSettings";
+
+    const appUrl =
+        "https://kotom0919.github.io/Sleep-and-Mood-Tracking-ver.1/";
+
+    const $ = id => document.getElementById(id);
+
+    const modals = [
+        "app-settings-modal",
+        "app-transfer-modal",
+        "app-share-modal"
+    ];
+
+    const closeModals = () => {
+        modals.forEach(id => {
+            $(id).hidden = true;
+        });
+    };
+
+    const openModal = id => {
+        closeModals();
+        $(id).hidden = false;
+    };
+
+    // 設定画面
+    $("app-settings-button").addEventListener("click", () => {
+        openModal("app-settings-modal");
+    });
+
+    $("open-transfer-button").addEventListener("click", () => {
+        openModal("app-transfer-modal");
+    });
+
+    $("open-share-button").addEventListener("click", () => {
+        $("app-share-qr").src =
+            "https://api.qrserver.com/v1/create-qr-code/" +
+            "?size=200x200&data=" +
+            encodeURIComponent(appUrl);
+
+        openModal("app-share-modal");
+    });
+
+    $("open-other-apps-button").addEventListener("click", () => {
+        closeModals();
+
+        const button = $("shared-app-menu-button");
+
+        if (button) {
+            button.click();
+        } else {
+            alert("アプリ一覧を読み込めませんでした。");
+        }
+    });
+
+    // 閉じる
+    document.querySelectorAll("[data-close-app-modal]")
+        .forEach(button => {
+            button.addEventListener("click", closeModals);
+        });
+
+    modals.forEach(id => {
+        $(id).addEventListener("click", event => {
+            if (event.target === $(id)) {
+                closeModals();
+            }
+        });
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+            closeModals();
+        }
+    });
+
+    // データを書き出す
+    $("export-app-data").addEventListener("click", () => {
+        const data = {
+            app: "Sleep-and-Mood-Tracking-ver.1",
+            exportedAt: new Date().toISOString(),
+
+            records: JSON.parse(
+                localStorage.getItem(recordKey) || "{}"
+            ),
+
+            conditionSettings: JSON.parse(
+                localStorage.getItem(settingKey) || "null"
+            )
+        };
+
+        const blob = new Blob(
+            [JSON.stringify(data, null, 2)],
+            { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        a.href = url;
+        a.download =
+            "睡眠体調記録アプリ1_バックアップ_" +
+            new Date().toISOString().slice(0, 10) +
+            ".json";
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    // データを読み込む
+    $("import-app-data").addEventListener("click", () => {
+        $("import-app-file").click();
+    });
+
+    $("import-app-file").addEventListener(
+        "change",
+        async event => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            try {
+                const data = JSON.parse(await file.text());
+
+                const validRecords =
+                    data.records &&
+                    typeof data.records === "object" &&
+                    !Array.isArray(data.records) &&
+                    Object.entries(data.records).every(
+                        ([date, value]) =>
+                            /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+                            value &&
+                            typeof value === "object" &&
+                            !Array.isArray(value)
+                    );
+
+                const keys = [
+                    "dizziness",
+                    "irritation",
+                    "nausea",
+                    "sleepiness",
+                    "fatigue",
+                    "headache"
+                ];
+
+                const validSettings =
+                    data.conditionSettings === null ||
+                    (
+                        Array.isArray(data.conditionSettings) &&
+                        data.conditionSettings.length === 6 &&
+                        keys.every(key =>
+                            data.conditionSettings.some(
+                                item =>
+                                    item &&
+                                    item.key === key &&
+                                    typeof item.label === "string"
+                            )
+                        )
+                    );
+
+                if (
+                    data.app !== "Sleep-and-Mood-Tracking-ver.1" ||
+                    !validRecords ||
+                    !validSettings
+                ) {
+                    throw new Error(
+                        "アプリ1のバックアップファイルではありません。"
+                    );
+                }
+
+                if (!confirm(
+                    "現在の記録と項目設定を、読み込んだデータで上書きしますか？\n" +
+                    "この操作は元に戻せません。"
+                )) {
+                    return;
+                }
+
+                const previousRecords =
+                    localStorage.getItem(recordKey);
+
+                const previousSettings =
+                    localStorage.getItem(settingKey);
+
+                try {
+                    localStorage.setItem(
+                        recordKey,
+                        JSON.stringify(data.records)
+                    );
+
+                    if (data.conditionSettings === null) {
+                        localStorage.removeItem(settingKey);
+                    } else {
+                        localStorage.setItem(
+                            settingKey,
+                            JSON.stringify(data.conditionSettings)
+                        );
+                    }
+                } catch (error) {
+                    if (previousRecords === null) {
+                        localStorage.removeItem(recordKey);
+                    } else {
+                        localStorage.setItem(
+                            recordKey,
+                            previousRecords
+                        );
+                    }
+
+                    if (previousSettings === null) {
+                        localStorage.removeItem(settingKey);
+                    } else {
+                        localStorage.setItem(
+                            settingKey,
+                            previousSettings
+                        );
+                    }
+
+                    throw error;
+                }
+
+                alert(
+                    "データを読み込みました。画面を更新します。"
+                );
+
+                location.reload();
+
+            } catch (error) {
+                alert(
+                    "読み込みに失敗しました：" + error.message
+                );
+            } finally {
+                event.target.value = "";
+            }
+        }
+    );
+
+    // URLコピー
+    $("copy-app-url").addEventListener("click", async () => {
+        try {
+            await navigator.clipboard.writeText(appUrl);
+            alert("URLをコピーしました。");
+        } catch (error) {
+            prompt("このURLをコピーしてください。", appUrl);
+        }
+    });
+
+    // スマホの共有機能
+    $("native-app-share").addEventListener(
+        "click",
+        async () => {
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: "睡眠＆体調記録アプリ1",
+                        url: appUrl
+                    });
+                } catch (error) {
+                    if (error.name !== "AbortError") {
+                        alert("共有できませんでした。");
+                    }
+                }
+            } else {
+                try {
+                    await navigator.clipboard.writeText(appUrl);
+                    alert("共有用URLをコピーしました。");
+                } catch (error) {
+                    prompt(
+                        "このURLをコピーしてください。",
+                        appUrl
+                    );
+                }
+            }
+        }
+    );
+});
