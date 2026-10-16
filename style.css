@@ -2550,3 +2550,60 @@ body.record-view .app {
         padding: 18px 14px;
     }
 }
+/* メモ欄をアプリ2と同じデザインにする */
+.memo-section {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.memo-section h2 {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+
+    margin: 0 0 10px;
+    padding-left: 20px;
+
+    text-align: left;
+    color: #000;
+    font-size: 24px;
+    pointer-events: none;
+}
+
+.memo-section:focus-within h2 {
+    display: block;
+}
+
+.memo-section.has-memo h2 {
+    display: none;
+}
+
+.memo-section textarea {
+    display: block;
+    width: 100%;
+    height: 120px;
+    min-height: 120px;
+    max-height: none;
+    padding: 20px;
+
+    border: 3px double #19365f;
+    border-radius: 0;
+
+    background: #f0f7df;
+    color: #000;
+    font-size: 18px;
+    line-height: 1.5;
+
+    resize: none;
+    overflow-y: hidden;
+}
+
+/* 下部ボタンの枠線をなくす */
+.bottom-nav-button {
+    border: none;
+}
+
+.bottom-nav-button.active {
+    box-shadow: none;
+}
