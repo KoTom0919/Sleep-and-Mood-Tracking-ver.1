@@ -2698,3 +2698,7 @@ body.record-view .app {
         padding: 10px 12px;
     }
 }
+/* 記録・クリアボタンの枠線をなくす */
+.record-action-button {
+    border: none;
+}
